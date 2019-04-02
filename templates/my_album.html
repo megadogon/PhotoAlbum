@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">PhotoAlbum</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse">
+        <ul class="navbar-nav">
+            <li class="nav-item active">
+                <a class="nav-link" href="/my_albums">Мои альбомы</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/votes">Голосование</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/rating">Рейтинг</a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+                   aria-expanded="false">
+                    {{user.username}}
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                    <a class="dropdown-item" href="#">Профиль</a>
+                    <a class="dropdown-item" href="/logout">Выход</a>
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<main role="main" class="container">
+    <br>
+    <div class="alert bg-light">
+        <form action="/edit_album/{{album.id}}" method="post">
+            <div class="row">
+                <div class="col">
+                    <label>Изменение названия альбома</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <input type="text" class="form-control" name='title' value="{{album.title}}" required>
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary">Изменить</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="alert bg-light">
+        <form action="/add_photo/{{album.id}}" method="post" enctype="multipart/form-data">
+            <div class="row">
+                <div class="col">
+                    <label>Добавить фотографию в альбом</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <input type="file" name="file" id="customFile" required>
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+        <ol class="carousel-indicators">
+            {% for photo in photos %}
+            <li data-target="#carouselExampleIndicators" data-slide-to="{{photo.index}}" class="{{photo.active}}"></li>
+            {% endfor %}
+        </ol>
+        <div class="carousel-inner">
+            {% for photo in photos %}
+            <div class="carousel-item {{photo.active}}">
+                <a href="/photo/{{photo.id}}">
+                    <img class="d-block w-100" src="/photo_img/{{photo.id}}" alt="">
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button" data-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">Previous</span>
+        </a>
+        <a class="carousel-control-next" href="#carouselExampleIndicators" role="button" data-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="sr-only">Next</span>
+        </a>
+    </div>
+
+</main>
+
+{% endblock %}

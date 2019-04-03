@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="">PhotoAlbum</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" href="/my_albums">Мои альбомы</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/categories">Голосование</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/rating">Рейтинг</a>
+            </li>
+            <li class="nav-item dropdown active">
+                <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
+                   aria-expanded="false">
+                    {{user.username}}
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                    <a class="dropdown-item" href="/profile">Профиль</a>
+                    <a class="dropdown-item" href="/logout">Выход</a>
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+
+<main role="main" class="container">
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb bg-white">
+            <li class="breadcrumb-item">Профиль</li>
+            <li class="breadcrumb-item active" aria-current="page">{{user.name}} {{user.surname}}</li>
+        </ol>
+    </nav>
+
+    <div class="alert bg-light">
+        <form method="post">
+            <div class="form-group">
+                <label>Имя</label>
+                <input type="text" class="form-control" name="name" required value="{{user.name}}">
+            </div>
+
+            <div class="form-group">
+                <label>Фамилия</label>
+                <input type="text" class="form-control" name="surname" required value="{{user.surname}}">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Изменить</button>
+        </form>
+    </div>
+
+</main>
+
+{% endblock %}

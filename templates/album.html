@@ -78,30 +78,69 @@
         </form>
     </div>
 
-    <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
-        <ol class="carousel-indicators">
-            {% for photo in photos %}
-            <li data-target="#carouselExampleIndicators" data-slide-to="{{photo.index}}" class="{{photo.active}}"></li>
-            {% endfor %}
-        </ol>
-        <div class="carousel-inner">
-            {% for photo in photos %}
-            <div class="carousel-item {{photo.active}}">
+    {% for photo in photos %}
+    <div class="alert bg-light">
+        <div class="row">
+            <div class="col">
                 <a href="/photo/{{photo.id}}">
                     <img class="d-block w-100" src="/photo_img/{{photo.id}}" alt="">
                 </a>
             </div>
-            {% endfor %}
+            <div class="col">
+
+                <form action="/set_category/{{photo.id}}" method="post">
+                    <div class="row">
+                        <div class="col">
+                            <label>Категория</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <select class="form-control" name="category_id">
+                                <option value="None" {% if not photo.category_id %}selected{% endif %}>Не задано
+                                </option>
+                                {% for category in categories%}
+                                <option value="{{category.id}}"
+                                        {% if photo.category_id==category.id %}selected{% endif%}>
+                                    {{category.title}}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col">
+                            <button type="submit" class="btn btn-primary">Применить</button>
+                        </div>
+                    </div>
+                </form>
+                <br>
+                <form action="/add_comment/{{photo.id}}" method="post">
+                    <div class="row">
+                        <div class="col">
+                            <label>Добавить комментарий</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <textarea class="form-control" name="text" rows="2" required></textarea>
+                        </div>
+                        <div class="col">
+                            <button type="submit" class="btn btn-primary">Добавить</button>
+                        </div>
+                    </div>
+                </form>
+                <br>
+                {% for comment in photo.comments %}
+                <div class="alert bg-light">
+                    {% for line in comment.text.split("\n") %}
+                    {{line}}</br>
+                    {% endfor %}
+                    <a href="/delete_comment/{{comment.id}}">Удалить комментарий</a>
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button" data-slide="prev">
-            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="sr-only">Previous</span>
-        </a>
-        <a class="carousel-control-next" href="#carouselExampleIndicators" role="button" data-slide="next">
-            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="sr-only">Next</span>
-        </a>
     </div>
+    {% endfor %}
 
 </main>
 

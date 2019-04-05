@@ -11,7 +11,7 @@
     <div class="collapse navbar-collapse">
         <ul class="navbar-nav">
             <li class="nav-item">
-                <a class="nav-link" href="/my_albums">Мои альбомы</a>
+                <a class="nav-link" href="/albums">Мои альбомы</a>
             </li>
             <li class="nav-item active">
                 <a class="nav-link" href="/categories">Голосование</a>
@@ -38,25 +38,55 @@
 
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb bg-white">
-            <li class="breadcrumb-item active" aria-current="page">Голосование</li>
+            <li class="breadcrumb-item active" aria-current="page"><a href="/categories">Голосование</a></li>
             <li class="breadcrumb-item active" aria-current="page">{{category.title}}</li>
         </ol>
     </nav>
 
-    <h2>Щелкните по фотографии, которая больше нравится:</h2>
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        {{error}}
+    </div>
+    {% else %}
+    <div class="alert bg-light d-flex justify-content-center">
+        <h2>Щелкните по фотографии, которая больше нравится</h2>
+    </div>
+
+    <div class="row">
+        <div class="col d-flex justify-content-center">
+            <h4>{{photo1.title}}</h4>
+        </div>
+        <div class="col d-flex justify-content-center">
+            <h4>{{photo2.title}}</h4>
+        </div>
+    </div>
 
     <div class="row">
         <div class="col">
-            <a href="/set_vote/{{photo1.id}}/{{photo2.id}}">
-                <img src="/photo_img/{{photo1.id}}" class="img-fluid">
-            </a>
+            <center>
+                <a href="/set_vote/{{photo1.id}}/{{photo2.id}}">
+                    <img src="/photo_img/{{photo1.id}}" class="img-fluid">
+                </a>
+                {% for line in photo1.description.split('\n') %}
+                {{line}}
+                <br>
+                {% endfor %}
+            </center>
         </div>
         <div class="col">
-            <a href="/set_vote/{{photo2.id}}/{{photo1.id}}">
-                <img src="/photo_img/{{photo2.id}}" class="img-fluid">
-            </a>
+            <center>
+                <a href="/set_vote/{{photo2.id}}/{{photo1.id}}">
+                    <img src="/photo_img/{{photo2.id}}" class="img-fluid">
+                </a>
+                <br>
+                {% for line in photo2.description.split('\n') %}
+                {{line}}
+                <br>
+                {% endfor %}
+            </center>
         </div>
     </div>
+    {% endif %}
 
 </main>
 

@@ -13,12 +13,13 @@
             <li class="nav-item">
                 <a class="nav-link" href="/albums">Мои альбомы</a>
             </li>
-            <li class="nav-item active">
+            <li class="nav-item">
                 <a class="nav-link" href="/categories">Голосование</a>
             </li>
-            <li class="nav-item">
+            <li class="nav-item active">
                 <a class="nav-link" href="/rating">Рейтинг</a>
             </li>
+
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true"
                    aria-expanded="false">
@@ -34,43 +35,52 @@
 </nav>
 
 <main role="main" class="container">
-
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb bg-white">
-            <li class="breadcrumb-item active" aria-current="page">Голосование</li>
-            <li class="breadcrumb-item active" aria-current="page">Категории</li>
+            <li class="breadcrumb-item active" aria-current="page"><a href="/rating">Рейтинг</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{category.title}}</li>
         </ol>
     </nav>
-    {% if user.id==1 %}
-    <h5/>
+
+    {% for photo in photos %}
     <div class="alert bg-light">
-        <form action="add_category" method="post">
-            <div class="row">
-                <div class="col">
-                    <label>Добавление новой категории</label>
-                </div>
+        <div class="row">
+            <div class="col">
+                <a href="/photo/{{photo.id}}">
+                    <img class="d-block w-100" src="/photo_img/{{photo.id}}" alt="">
+                </a>
             </div>
-            <div class="row">
-                <div class="col">
-                    <input type="text" class="form-control" name='title' placeholder="Название категории" required>
-                </div>
-                <div class="col">
-                    <button type="submit" class="btn btn-primary mb-2">Добавить</button>
-                </div>
+            <div class="col">
+                <h2>
+                    {% if photo.place <=3 %}
+                    <img src="/static/img/{{photo.place}}.png" height="96">
+                    {% else %}
+                    {{photo.place}}
+                    {% endif %}
+                    место
+                </h2>
+                <h5>Рейтинг:
+                    {{photo.rating}} &nbsp;&nbsp;&nbsp;
+                    <span class="badge badge-success">
+                    <img src="/static/img/up.gif">{{ photo.good_votes|length }}
+                    </span>
+                    <span class="badge badge-danger">
+                    <img src="/static/img/down.gif">{{ photo.bad_votes|length }}
+                    </span>
+                </h5>
+                <h5>Автор: {{photo.album.user.name}} {{photo.album.user.surname}}</h5>
+                <h5>Название: {{photo.title}}</h5>
+                <h5>Описание:</h5>
+                {% for line in photo.description.split('\n') %}
+                {{line}}
+                <br>
+                {% endfor %}
             </div>
-        </form>
+        </div>
     </div>
-    <h5/>
-    {% endif %}
-    {% for category in categories%}
-    <div class="alert bg-light">
-        <a href="/vote/{{category.id}}"><h4>{{category.title}}</h4></a>
-        {% if user.id==1 %}
-        <a href="/category/{{category.id}}">Редактировать</a> /
-        <a href="/delete_category/{{category.id}}" onclick="return confirm('Удалить категорию?')">Удалить</a>
-        {% endif %}
     </div>
     {% endfor %}
+
 
 </main>
 

@@ -20,10 +20,10 @@ db = SQLAlchemy(app)
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    name = db.Column(db.String(80), unique=False, nullable=False)
-    surname = db.Column(db.String(80), unique=False, nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    surname = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), unique=False, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
 
     def __repr__(self):
         return '<User {} {} {} {}>'.format(
@@ -42,7 +42,7 @@ class Album(db.Model):
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(120), nullable=False)
+    title = db.Column(db.String(120), unique=True, nullable=False)
 
     def __repr__(self):
         return '<Category {}>'.format(self.id)
@@ -50,6 +50,8 @@ class Category(db.Model):
 
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(120))
+    description = db.Column(db.Text)
     album_id = db.Column(db.Integer, db.ForeignKey('album.id', ondelete="CASCADE"), nullable=False)
     album = db.relationship('Album', backref=db.backref('photos', cascade="all"))
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
@@ -62,25 +64,14 @@ class Photo(db.Model):
         return '<Photo {}>'.format(self.id)
 
 
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    photo_id = db.Column(db.Integer, db.ForeignKey('photo.id', ondelete="CASCADE"), nullable=False)
-    photo = db.relationship('Photo', backref=db.backref('comments', cascade="all"))
-    text = db.Column(db.Text())
-
-    def __repr__(self):
-        return '<Comment {}>'.format(self.id)
-
-
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
     user = db.relationship('User', backref=db.backref('votes', cascade="all"))
     good_photo_id = db.Column(db.Integer, db.ForeignKey('photo.id', ondelete="CASCADE"), nullable=False)
-    good_photo = db.relationship('Photo', foreign_keys=[good_photo_id],
-                                 backref=db.backref('good_photos', cascade="all"))
+    good_photo = db.relationship('Photo', foreign_keys=[good_photo_id], backref=db.backref('good_votes', cascade="all"))
     bad_photo_id = db.Column(db.Integer, db.ForeignKey('photo.id', ondelete="CASCADE"), nullable=False)
-    bad_photo = db.relationship('Photo', foreign_keys=[bad_photo_id], backref=db.backref('bad_photos', cascade="all"))
+    bad_photo = db.relationship('Photo', foreign_keys=[bad_photo_id], backref=db.backref('bad_votes', cascade="all"))
 
 
 db.create_all()
@@ -111,7 +102,7 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             session['username'] = username
             session['user_id'] = user.id
-            return redirect('/my_albums')
+            return redirect('/albums')
 
         errors = ['Неверное имя пользователя или пароль']
         return render_template('login.html', title='Авторизация', errors=errors)
@@ -159,7 +150,7 @@ def registration():
     # авто-логин после регистрации
     session['username'] = user.username
     session['user_id'] = user.id
-    return redirect('/my_albums')
+    return redirect('/albums')
 
 
 def getCurrentUser():
@@ -169,8 +160,8 @@ def getCurrentUser():
     return User.query.filter_by(id=user_id).first()
 
 
-@app.route('/my_albums', methods=['GET'])
-def my_albums():
+@app.route('/albums', methods=['GET'])
+def albums():
     user = getCurrentUser()
     if not user:
         return redirect('/login')
@@ -193,7 +184,7 @@ def add_album():
 
     db.session.add(album)
     db.session.commit()
-    return redirect("/my_album/" + str(album.id))
+    return redirect("/album/" + str(album.id))
 
 
 @app.route('/delete_album/<int:album_id>', methods=['GET'])
@@ -204,33 +195,55 @@ def delete_album(album_id):
     album = Album.query.filter_by(user_id=user.id, id=album_id).first_or_404()
     db.session.delete(album)
     db.session.commit()
-    return redirect("/my_albums")
+    return redirect("/albums")
 
 
-@app.route('/my_album/<int:album_id>', methods=['GET'])
-def my_album(album_id):
+def calc_rating(photos):
+    for photo in photos:
+        photo.good = len(photo.good_votes)
+        photo.bad = len(photo.bad_votes)
+        photo.rating = photo.good - photo.bad
+
+
+@app.route('/album/<int:album_id>', methods=['GET', 'POST'])
+def album(album_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
     album = Album.query.filter_by(user_id=user.id, id=album_id).first_or_404()
-    photos = Photo.query.filter_by(album_id=album_id).order_by(Photo.id).all()
-    categories = Category.query.order_by(Category.title).all()
-    return render_template('album.html', title='Мои альбомы', user=user, album=album, photos=photos,
-                           categories=categories)
+
+    if request.method == 'POST':
+        title = request.form['title']
+        album.title = title
+        db.session.commit()
+        return redirect("/album/" + str(album_id))
+    else:
+        photos = Photo.query.filter_by(album_id=album_id).order_by(Photo.id).all()
+        calc_rating(photos)
+        categories = Category.query.order_by(Category.title).all()
+        return render_template('album.html', title='Мой альбом', user=user, album=album, photos=photos,
+                               categories=categories)
 
 
-@app.route('/edit_album/<int:album_id>', methods=['POST'])
-def edit_album(album_id):
+@app.route('/category/<int:category_id>', methods=['GET', 'POST'])
+def category(category_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
-    title = request.form['title']
-    album = Album.query.filter_by(user_id=user.id, id=album_id).first_or_404()
-    album.title = title
-    db.session.commit()
-    return redirect("/my_album/" + str(album_id))
+    if request.method == 'POST':
+        if user.id != 1:
+            abort(403)
+
+        title = request.form['title']
+        category = Category.query.filter_by(id=category_id).first_or_404()
+        category.title = title
+        db.session.commit()
+        return redirect("/categories")
+    else:
+        category = Category.query.filter_by(id=category_id).first_or_404()
+        return render_template('category.html', title='Категория', user=user, category=category)
 
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
@@ -271,7 +284,7 @@ def add_photo(album_id):
         db.session.add(photo)
         db.session.commit()
 
-    return redirect("/photo/" + str(photo.id))
+    return redirect("/album/" + str(album_id) + "#" + str(photo.id))
 
 
 @app.route('/photo_img/<int:photo_id>', methods=['GET'])
@@ -287,56 +300,6 @@ def photo_img(photo_id):
         mimetype=photo.mimetype,
         as_attachment=True,
         attachment_filename=photo.filename)
-
-
-@app.route('/photo/<int:photo_id>', methods=['GET'])
-def photo(photo_id):
-    user = getCurrentUser()
-    if not user:
-        return redirect('/login')
-    photo = Photo.query.filter_by(id=photo_id).first_or_404()
-    album = photo.album
-    comments = Comment.query.filter_by(photo_id=photo_id).order_by(Comment.id).all()
-    categories = Category.query.order_by(Category.title).all()
-    return render_template('photo.html', user=user, album=album, photo=photo, comments=comments,
-                           categories=categories)
-
-
-@app.route('/add_comment/<int:photo_id>', methods=['POST'])
-def add_comment(photo_id):
-    user = getCurrentUser()
-    if not user:
-        return redirect('/login')
-
-    photo = Photo.query.filter_by(id=photo_id).first_or_404()
-    if photo.album.user_id != user.id:
-        abort(404)
-
-    text = request.form['text']
-    comment = Comment(
-        photo_id=photo_id,
-        text=text
-    )
-
-    db.session.add(comment)
-    db.session.commit()
-    return redirect("/my_album/" + str(photo.album_id))
-
-
-@app.route('/delete_comment/<int:comment_id>', methods=['GET'])
-def delete_comment(comment_id):
-    user = getCurrentUser()
-    if not user:
-        return redirect('/login')
-
-    comment = Comment.query.filter_by(id=comment_id).first_or_404()
-    photo = comment.photo
-    if photo.album.user_id != user.id:
-        abort(404)
-
-    db.session.delete(comment)
-    db.session.commit()
-    return redirect("/my_album/" + str(photo.album_id))
 
 
 @app.route('/categories', methods=['GET'])
@@ -361,6 +324,9 @@ def add_category():
     if not user:
         return redirect('/login')
 
+    if user.id != 1:
+        abort(403)
+
     title = request.form['title']
     category = Category(
         title=title)
@@ -375,14 +341,18 @@ def delete_category(category_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
+
+    if user.id != 1:
+        abort(403)
+
     category = Category.query.filter_by(id=category_id).first()
     db.session.delete(category)
     db.session.commit()
     return redirect("/categories")
 
 
-@app.route('/set_category/<int:photo_id>', methods=['POST'])
-def set_category(photo_id):
+@app.route('/edit_photo/<int:photo_id>', methods=['POST'])
+def edit_photo(photo_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
@@ -391,13 +361,35 @@ def set_category(photo_id):
     if photo.album.user_id != user.id:
         abort(404)
 
+    photo.title = request.form['title']
+    photo.description = request.form['description']
+
     category_id = request.form['category_id']
     if category_id == "None":
-        photo.category_id = None
-    else:
+        category_id = None
+    if photo.category_id != category_id:
         photo.category_id = category_id
+        Vote.query.filter_by(good_photo_id=photo_id).delete()
+        Vote.query.filter_by(bad_photo_id=photo_id).delete()
+
     db.session.commit()
-    return redirect("/my_album/" + str(photo.album_id))
+    return redirect("/album/" + str(photo.album_id) + "#" + str(photo_id))
+
+
+@app.route('/delete_photo/<int:photo_id>', methods=['GET'])
+def delete_photo(photo_id):
+    user = getCurrentUser()
+    if not user:
+        return redirect('/login')
+
+    photo = Photo.query.filter_by(id=photo_id).first_or_404()
+    album = photo.album
+    if album.user_id != user.id:
+        abort(404)
+
+    db.session.delete(photo)
+    db.session.commit()
+    return redirect("/album/" + str(album.id))
 
 
 @app.route('/vote/<int:category_id>', methods=['GET'])
@@ -407,11 +399,24 @@ def vote(category_id):
         return redirect('/login')
 
     category = Category.query.filter_by(id=category_id).first_or_404()
-    photos = Photo.query.filter_by(category_id=category_id).all()
-    photo1 = choice(photos)
-    photos.remove(photo1)
-    photo2 = choice(photos)
-    return render_template('vote.html', title='Голосование', user=user, category=category, photo1=photo1, photo2=photo2)
+    photos = category.photos
+
+    if len(photos) >= 2:
+        photo1 = choice(photos)
+        photos.remove(photo1)
+        photo2 = choice(photos)
+        error = None
+    else:
+        error = 'В категории недостаточно фотографий для голосования'
+        photo1 = None
+        photo2 = None
+
+    return render_template('vote.html', title='Голосование',
+                           user=user,
+                           category=category,
+                           photo1=photo1,
+                           photo2=photo2,
+                           error=error)
 
 
 @app.route('/set_vote/<int:good_photo_id>/<int:bad_photo_id>', methods=['GET'])
@@ -441,18 +446,41 @@ def rating():
     if not user:
         return redirect('/login')
 
-    best_photo = None
-    max_rating = 0
+    categories = Category.query.order_by(Category.title).all()
+    categories = [category for category in categories if len(category.photos) >= 2]
 
-    photos = Photo.query.all()
+    return render_template('rating.html', title='Рейтинг', user=user, categories=categories)
+
+
+@app.route('/top/<int:category_id>', methods=['GET'])
+def top(category_id):
+    user = getCurrentUser()
+    if not user:
+        return redirect('/login')
+
+    # ищем категорию
+    category = Category.query.filter_by(id=category_id).first_or_404()
+
+    # список всех фотографий в категории
+    photos = category.photos
+    calc_rating(photos)
+
+    # сортируем по рейтингу
+    l1 = []
     for photo in photos:
-        good_votes = Vote.query.filter_by(good_photo_id=photo.id).all()
-        bad_votes = Vote.query.filter_by(bad_photo_id=photo.id).all()
-        rating = len(good_votes) - len(bad_votes)
-        if not best_photo or rating > max_rating:
-            best_photo = photo
+        l1.append((-photo.rating, photo.id, photo))
+    l1.sort()
+    photos = [item[2] for item in l1]
 
-    return render_template('rating.html', title='Рейтинг', user=user, photo=best_photo)
+    # оставляем первые 10 фото
+    if len(photos) > 10:
+        photos = photos[0:10]
+
+    # подсчитываем места
+    for i in range(len(photos)):
+        photos[i].place = i + 1
+
+    return render_template('top.html', title='Топ-10', user=user, category=category, photos=photos)
 
 
 @app.route('/profile', methods=['GET', 'POST'])

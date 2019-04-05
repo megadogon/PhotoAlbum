@@ -11,7 +11,7 @@
     <div class="collapse navbar-collapse">
         <ul class="navbar-nav">
             <li class="nav-item active">
-                <a class="nav-link" href="/my_albums">Мои альбомы</a>
+                <a class="nav-link" href="/albums">Мои альбомы</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="/categories">Голосование</a>
@@ -37,13 +37,13 @@
 
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb bg-white">
-            <li class="breadcrumb-item"><a href="/my_albums">Мои фотоальбомы</a></li>
+            <li class="breadcrumb-item"><a href="/albums">Мои фотоальбомы</a></li>
             <li class="breadcrumb-item active" aria-current="page">{{album.title}}</li>
         </ol>
     </nav>
 
     <div class="alert bg-light">
-        <form action="/edit_album/{{album.id}}" method="post">
+        <form action="/album/{{album.id}}" method="post">
             <div class="row">
                 <div class="col">
                     <label>Изменение названия альбома</label>
@@ -51,7 +51,7 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <input type="text" class="form-control" name='title' value="{{album.title}}" required autofocus>
+                    <input type="text" class="form-control" name='title' value="{{album.title}}" required>
                 </div>
                 <div class="col">
                     <button type="submit" class="btn btn-primary">Изменить</button>
@@ -79,6 +79,7 @@
     </div>
 
     {% for photo in photos %}
+    <a name="{{photo.id}}"></a>
     <div class="alert bg-light">
         <div class="row">
             <div class="col">
@@ -87,56 +88,45 @@
                 </a>
             </div>
             <div class="col">
-
-                <form action="/set_category/{{photo.id}}" method="post">
-                    <div class="row">
-                        <div class="col">
-                            <label>Категория</label>
-                        </div>
+                {% if photo.category %}
+                <h5>Рейтинг:
+                    {{photo.rating}} &nbsp;&nbsp;&nbsp;
+                    <span class="badge badge-success">
+                        <img src="/static/img/up.gif">{{ photo.good_votes|length }}
+                    </span>
+                    <span class="badge badge-danger">
+                        <img src="/static/img/down.gif">{{ photo.bad_votes|length }}
+                    </span>
+                </h5>
+                {% endif %}
+                <form action="/edit_photo/{{photo.id}}" method="post">
+                    <div class="form-group">
+                        <label>Название</label>
+                        <input type="text" class="form-control" name="title"
+                               value="{% if photo.title %}{{photo.title}}{%endif%}">
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            <select class="form-control" name="category_id">
-                                <option value="None" {% if not photo.category_id %}selected{% endif %}>Не задано
-                                </option>
-                                {% for category in categories%}
-                                <option value="{{category.id}}"
-                                        {% if photo.category_id==category.id %}selected{% endif%}>
-                                    {{category.title}}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col">
-                            <button type="submit" class="btn btn-primary">Применить</button>
-                        </div>
+                    <div class="form-group">
+                        <label>Описание</label>
+                        <textarea class="form-control" name="description">{% if photo.description %}{{photo.description}}{%endif%}</textarea>
                     </div>
-                </form>
-                <br>
-                <form action="/add_comment/{{photo.id}}" method="post">
-                    <div class="row">
-                        <div class="col">
-                            <label>Добавить комментарий</label>
-                        </div>
+                    <div class="form-group">
+                        <label>Категория</label>
+                        <select class="form-control" name="category_id">
+                            <option value="None" {% if not photo.category_id %}selected{% endif %}>Не задано
+                            </option>
+                            {% for category in categories%}
+                            <option value="{{category.id}}"
+                                    {% if photo.category_id==category.id %}selected{% endif%}>
+                                {{category.title}}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="row">
-                        <div class="col">
-                            <textarea class="form-control" name="text" rows="2" required></textarea>
-                        </div>
-                        <div class="col">
-                            <button type="submit" class="btn btn-primary">Добавить</button>
-                        </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">Применить</button>
                     </div>
                 </form>
-                <br>
-                {% for comment in photo.comments %}
-                <div class="alert bg-light">
-                    {% for line in comment.text.split("\n") %}
-                    {{line}}</br>
-                    {% endfor %}
-                    <a href="/delete_comment/{{comment.id}}">Удалить комментарий</a>
-                </div>
-                {% endfor %}
+                <a href="/delete_photo/{{photo.id}}" onclick="return confirm('Удалить фото?')">Удалить фото</a>
             </div>
         </div>
     </div>

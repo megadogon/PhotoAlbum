@@ -17,6 +17,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 db = SQLAlchemy(app)
 
 
+# таблица пользователей
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -30,6 +31,7 @@ class User(db.Model):
             self.id, self.username, self.name, self.surname)
 
 
+# таблица фотоалбомов
 class Album(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
@@ -40,6 +42,7 @@ class Album(db.Model):
         return '<Album {}>'.format(self.id)
 
 
+# таблица категорий
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(120), unique=True, nullable=False)
@@ -48,6 +51,7 @@ class Category(db.Model):
         return '<Category {}>'.format(self.id)
 
 
+# таблица фотографий
 class Photo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(120))
@@ -64,6 +68,7 @@ class Photo(db.Model):
         return '<Photo {}>'.format(self.id)
 
 
+# таблица голосов
 class Vote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete="CASCADE"), nullable=False)
@@ -74,8 +79,10 @@ class Vote(db.Model):
     bad_photo = db.relationship('Photo', foreign_keys=[bad_photo_id], backref=db.backref('bad_votes', cascade="all"))
 
 
+# создание всех таблиц в базе данных
 db.create_all()
 
+# создание пользователя - администратора
 if User.query.first() == None:
     admin = User(
         username='admin',
@@ -87,18 +94,21 @@ if User.query.first() == None:
     db.session.commit()
 
 
+# обработчик главной страницы
 @app.route('/')
 @app.route('/index')
 def index():
     return redirect('/login')
 
 
+# обработчик входа в систему
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
+        # проверка, что пользователь есть и его пароль совпадает
         if user and check_password_hash(user.password_hash, password):
             session['username'] = username
             session['user_id'] = user.id
@@ -110,6 +120,7 @@ def login():
         return render_template('login.html', title='Авторизация')
 
 
+# обработчик регистрации
 @app.route('/registration', methods=['GET', 'POST'])
 def registration():
     if request.method == 'GET':
@@ -144,6 +155,7 @@ def registration():
             password_hash=generate_password_hash(password1),
         )
 
+    # запоминанеие текущего пользователя в сессии
     db.session.add(user)
     db.session.commit()
 
@@ -153,6 +165,7 @@ def registration():
     return redirect('/albums')
 
 
+# получение текущего пользователя
 def getCurrentUser():
     if 'user_id' not in session:
         return None
@@ -160,17 +173,20 @@ def getCurrentUser():
     return User.query.filter_by(id=user_id).first()
 
 
+# обработчик фотоальбомов
 @app.route('/albums', methods=['GET'])
 def albums():
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # получение списка фотоальбомов текущего пользователя
     albums = Album.query.filter_by(user_id=user.id).order_by(Album.title).all()
 
     return render_template('albums.html', title='Мои альбомы', user=user, albums=albums)
 
 
+# обработчик добавления фотоальбома
 @app.route('/add_album', methods=['POST'])
 def add_album():
     user = getCurrentUser()
@@ -187,17 +203,22 @@ def add_album():
     return redirect("/album/" + str(album.id))
 
 
+# обработчик удаления фотоальбома
 @app.route('/delete_album/<int:album_id>', methods=['GET'])
 def delete_album(album_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
+
+    # поиск фотоальбома, проверка, что он принадлежит текущему пользователю
     album = Album.query.filter_by(user_id=user.id, id=album_id).first_or_404()
+
     db.session.delete(album)
     db.session.commit()
     return redirect("/albums")
 
 
+# подсчет рейтинга всех фото
 def calc_rating(photos):
     for photo in photos:
         photo.good = len(photo.good_votes)
@@ -205,27 +226,35 @@ def calc_rating(photos):
         photo.rating = photo.good - photo.bad
 
 
+# обработчик фотоальбома
 @app.route('/album/<int:album_id>', methods=['GET', 'POST'])
 def album(album_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # поиск фотоальбома, проверка, что он принадлежит текущему пользователю
     album = Album.query.filter_by(user_id=user.id, id=album_id).first_or_404()
 
     if request.method == 'POST':
+        # изменение фотоальбома
         title = request.form['title']
         album.title = title
         db.session.commit()
         return redirect("/album/" + str(album_id))
     else:
+        # отображение фотоальбома
+        # получение всех потографий фотоальбома
         photos = Photo.query.filter_by(album_id=album_id).order_by(Photo.id).all()
+        # подсчет рейтинга
         calc_rating(photos)
+        # получение всех категорий
         categories = Category.query.order_by(Category.title).all()
         return render_template('album.html', title='Мой альбом', user=user, album=album, photos=photos,
                                categories=categories)
 
 
+# обработчик категории
 @app.route('/category/<int:category_id>', methods=['GET', 'POST'])
 def category(category_id):
     user = getCurrentUser()
@@ -233,8 +262,9 @@ def category(category_id):
         return redirect('/login')
 
     if request.method == 'POST':
+        # только администратор может редактировать категорию
         if user.id != 1:
-            abort(403)
+            abort(403)  # ошибка - в доступе отказано
 
         title = request.form['title']
         category = Category.query.filter_by(id=category_id).first_or_404()
@@ -242,38 +272,49 @@ def category(category_id):
         db.session.commit()
         return redirect("/categories")
     else:
+        # просмотр списка всех категорий для голосования
         category = Category.query.filter_by(id=category_id).first_or_404()
         return render_template('category.html', title='Категория', user=user, category=category)
 
 
+# допустипые для скачивания файлы, только графические
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 
 
+# проверка, что это допустимый файл
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+# обработчик добавления фотографии
 @app.route('/add_photo/<int:album_id>', methods=['POST'])
 def add_photo(album_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # проверка, что альбом принадлежит текущему пользователю
     Album.query.filter_by(user_id=user.id, id=album_id).first_or_404()
 
     file = request.files['file']
 
     if file and allowed_file(file.filename):
+        # делаем безопасное имя файла
         filename = secure_filename(file.filename)
+        # файл, куда сохранять
         fullfilename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        # сохранение файла, который прислал пользователь
         file.save(fullfilename)
 
+        # чтение файла
         with open(fullfilename, "rb") as f:
             data = f.read()
 
+        # удаление файла
         os.remove(fullfilename)
 
+        # создание фотографии в базе данных
         photo = Photo(
             album_id=album_id,
             picture=data,
@@ -287,14 +328,17 @@ def add_photo(album_id):
     return redirect("/album/" + str(album_id) + "#" + str(photo.id))
 
 
+# обработчик получения фотографии
 @app.route('/photo_img/<int:photo_id>', methods=['GET'])
 def photo_img(photo_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # получение фото, проверка, что такое есть.
     photo = Photo.query.filter_by(id=photo_id).first_or_404()
 
+    # отправление фотографии, как графический файл для отображения в браузере
     return send_file(
         io.BytesIO(photo.picture),
         mimetype=photo.mimetype,
@@ -302,6 +346,7 @@ def photo_img(photo_id):
         attachment_filename=photo.filename)
 
 
+# обработчик списка категорий
 @app.route('/categories', methods=['GET'])
 def categories():
     user = getCurrentUser()
@@ -311,6 +356,7 @@ def categories():
     return render_template('categories.html', title='Категории', user=user, categories=categories)
 
 
+# обработчик выхода из системы
 @app.route('/logout')
 def logout():
     session.pop('username', 0)
@@ -318,14 +364,16 @@ def logout():
     return redirect('/login')
 
 
+# обработчик добавления категории
 @app.route('/add_category', methods=['POST'])
 def add_category():
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # только администратор может добавлять категории
     if user.id != 1:
-        abort(403)
+        abort(403)  # ошибка - в доступе отказано
 
     title = request.form['title']
     category = Category(
@@ -336,14 +384,16 @@ def add_category():
     return redirect("/categories")
 
 
+# обработчик удаления категории
 @app.route('/delete_category/<int:category_id>', methods=['GET'])
 def delete_category(category_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # только администратор может удалять категорию
     if user.id != 1:
-        abort(403)
+        abort(403)  # ошибка - в доступе отказано
 
     category = Category.query.filter_by(id=category_id).first()
     db.session.delete(category)
@@ -351,13 +401,16 @@ def delete_category(category_id):
     return redirect("/categories")
 
 
+# обработчик редактирования фотографии
 @app.route('/edit_photo/<int:photo_id>', methods=['POST'])
 def edit_photo(photo_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # поиск пото, проверка, что она есть
     photo = Photo.query.filter_by(id=photo_id).first_or_404()
+    # проверка, что фото принадлежит текущему пользователю
     if photo.album.user_id != user.id:
         abort(404)
 
@@ -367,6 +420,7 @@ def edit_photo(photo_id):
     category_id = request.form['category_id']
     if category_id == "None":
         category_id = None
+    # если у фотографии изменилась категория, то удалить рейтинг фотографии
     if photo.category_id != category_id:
         photo.category_id = category_id
         Vote.query.filter_by(good_photo_id=photo_id).delete()
@@ -376,14 +430,17 @@ def edit_photo(photo_id):
     return redirect("/album/" + str(photo.album_id) + "#" + str(photo_id))
 
 
+# обработчик удаления фотографии
 @app.route('/delete_photo/<int:photo_id>', methods=['GET'])
 def delete_photo(photo_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # поиск фото
     photo = Photo.query.filter_by(id=photo_id).first_or_404()
     album = photo.album
+    # только пользователь, который добавил фото может ее удалять
     if album.user_id != user.id:
         abort(404)
 
@@ -392,16 +449,20 @@ def delete_photo(photo_id):
     return redirect("/album/" + str(album.id))
 
 
+# обработчик голосования
 @app.route('/vote/<int:category_id>', methods=['GET'])
 def vote(category_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # поиск категории
     category = Category.query.filter_by(id=category_id).first_or_404()
+    # все фото в категории
     photos = category.photos
 
     if len(photos) >= 2:
+        # выбор двух случайных разных фото
         photo1 = choice(photos)
         photos.remove(photo1)
         photo2 = choice(photos)
@@ -419,17 +480,25 @@ def vote(category_id):
                            error=error)
 
 
+# обработчик голосования
 @app.route('/set_vote/<int:good_photo_id>/<int:bad_photo_id>', methods=['GET'])
 def set_vote(good_photo_id, bad_photo_id):
     user = getCurrentUser()
     if not user:
         return redirect('/login')
 
+    # поиск фото для определения категории
+    photo1 = Photo.query.filter_by(id=good_photo_id).first()
+    photo2 = Photo.query.filter_by(id=bad_photo_id).first()
+
+    if photo1.category_id != photo2.category_id:
+        abort(403)  # можно голосовать только за фотографии в одной категории
+
+    # удаление старого голосования текущего пользователя за эти две фото
     Vote.query.filter_by(user_id=user.id, good_photo_id=good_photo_id, bad_photo_id=bad_photo_id).delete()
     Vote.query.filter_by(user_id=user.id, good_photo_id=bad_photo_id, bad_photo_id=good_photo_id).delete()
 
-    photo = Photo.query.filter_by(id=good_photo_id).first()
-
+    # добавление нового голоса
     vote = Vote(
         user_id=user.id,
         good_photo_id=good_photo_id,
@@ -437,9 +506,10 @@ def set_vote(good_photo_id, bad_photo_id):
     )
     db.session.add(vote)
     db.session.commit()
-    return redirect('/vote/' + str(photo.category_id))
+    return redirect('/vote/' + str(photo1.category_id))
 
 
+# обработчик категорий рейтинга
 @app.route('/rating', methods=['GET'])
 def rating():
     user = getCurrentUser()
@@ -452,6 +522,7 @@ def rating():
     return render_template('rating.html', title='Рейтинг', user=user, categories=categories)
 
 
+# обработчик топ-10
 @app.route('/top/<int:category_id>', methods=['GET'])
 def top(category_id):
     user = getCurrentUser()
@@ -483,6 +554,7 @@ def top(category_id):
     return render_template('top.html', title='Топ-10', user=user, category=category, photos=photos)
 
 
+# обработчик профиля
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     user = getCurrentUser()
@@ -500,5 +572,6 @@ def profile():
         return render_template('profile.html', title='Профиль', user=user)
 
 
+# запуск web-сервера
 if __name__ == '__main__':
     app.run(port=8080, host='127.0.0.1')

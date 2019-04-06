@@ -82,7 +82,7 @@ if User.query.first() == None:
         name="Дмитрий",
         surname="Килиевич",
         email="dkiliyevich@mail.ru",
-        password_hash=generate_password_hash('q'))
+        password_hash=generate_password_hash('1234'))
     db.session.add(admin)
     db.session.commit()
 

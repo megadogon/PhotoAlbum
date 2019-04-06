@@ -325,7 +325,9 @@ def add_photo(album_id):
         db.session.add(photo)
         db.session.commit()
 
-    return redirect("/album/" + str(album_id) + "#" + str(photo.id))
+        return redirect("/album/" + str(album_id) + "#" + str(photo.id))
+    else:
+        return redirect("/album/" + str(album_id))
 
 
 # обработчик получения фотографии
